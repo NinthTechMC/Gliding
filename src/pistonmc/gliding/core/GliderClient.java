@@ -34,11 +34,12 @@ public class GliderClient {
         if (player.capabilities.isFlying || player.motionY >= MIN_MOTION_Y) {
             return false;
         }
+        if (player.onGround || player.isInWater() || player.handleLavaMovement()) {
+            return false;
+        }
         // TODO: check item
 
         // TODO: check dimension
-        //
-        // TODO: check not in water and not in ground
         if (!isGliding) {
             // falling over 1 block then can start gliding.
             // prevent gliding from jumping
@@ -52,6 +53,7 @@ public class GliderClient {
         // minimum vertical speed to trigger gliding
         final float DEG2RAD = (float)Math.PI / 180;
 
+        // ratio is about 2, but too fast seems
         final float minHorizontalSpeed = 0.5f;
         final float horizontalAccel = 0.1f;
         final float dragConstantVertical = 0.5f;
@@ -92,12 +94,13 @@ public class GliderClient {
         }
 
 
-        float lookUnitX = MathHelper.sin(-player.rotationYaw * (float) Math.PI/180);
-        float lookUnitZ = MathHelper.cos(-player.rotationYaw * (float) Math.PI/180);
+        final float lookUnitX = MathHelper.sin(-player.rotationYaw * (float) Math.PI/180);
+        final float lookUnitZ = MathHelper.cos(-player.rotationYaw * (float) Math.PI/180);
 
         // drag related to velocity squared
-        final float dragVertical = dragConstantVertical * cosLookAngleY * verticalSpeedSquared;
-        final float dragHorizontal = dragConstantHorizontal * sinLookAngleY * horizontalSpeedSquared;
+        final float totalSpeedSquared = verticalSpeedSquared + horizontalSpeedSquared;
+        final float dragVertical = dragConstantVertical * cosLookAngleY * totalSpeedSquared;
+        final float dragHorizontal = dragConstantHorizontal * sinLookAngleY * totalSpeedSquared;
 
         // vertical slowdown
         motionY = Math.min(motionY + dragVertical, MIN_MOTION_Y);

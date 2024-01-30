@@ -45,7 +45,8 @@ mixins: pistonmc.gliding.mixins
 mods: []
 
 # urls or local paths of dev jars to download into libs
-libs: []
+libs:
+- https://github.com/NinthTechMC/LibPiston/releases/download/v1.1.1/LibPiston-1.1.1-deobf.jar 
 
 # A mapping of properties to override in generated gradle.properties
 # ---
@@ -63,9 +64,8 @@ copy-paths:
 - ["null", src]
 - [src, src/main/java]
 # - [assets, src/main/resources/assets]
-# - [meta, src/main/resources/META-INF]
 - [mixins.gliding.json, src/main/resources/mixins.gliding.json]
-# - dependencies.gradle # same as [dependencies.gradle, dependencies.gradle]
+- dependencies.gradle
 
 # Suffixes to exclude from copying
 copy-exclude:
