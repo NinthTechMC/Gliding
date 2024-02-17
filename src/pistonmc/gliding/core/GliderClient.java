@@ -22,44 +22,50 @@ public class GliderClient {
         // only need to update motion on the client
         if (player instanceof EntityPlayerSP playersp) {
             IPlayerGliding playerGliding = (IPlayerGliding) playersp;
-            boolean canGlide = checkCanGlide(playersp, playerGliding.isGliding());
-            playerGliding.setGliding(canGlide);
-            if (canGlide) {
-                updateGlidingMotion(playersp, false);
+            int level = getGliderLevel(playersp, playerGliding.isGliding());
+            boolean gliding = level > 0;
+            playerGliding.setGliding(gliding);
+            if (gliding) {
+                boolean hasAcrobatic = EnchantmentAcrobatic.isOnPlayer(player);
+                int aerodynamicLevel = EnchantmentAerodynamic.getPlayerLevel(player);
+                updateGlidingMotion(playersp, hasAcrobatic, level, aerodynamicLevel);
             }
         }
     }
 
-    public static boolean checkCanGlide(EntityPlayer player, boolean isGliding) {
+    public static int getGliderLevel(EntityPlayer player, boolean isGliding) {
         if (player.capabilities.isFlying || player.motionY >= MIN_MOTION_Y) {
-            return false;
+            return 0;
         }
         if (player.onGround || player.isInWater() || player.handleLavaMovement()) {
-            return false;
+            return 0;
         }
-        // TODO: check item
 
-        // TODO: check dimension
         if (!isGliding) {
-            // falling over 1 block then can start gliding.
+            // falling over some distance then can start gliding.
             // prevent gliding from jumping
-            return player.fallDistance > 1;
+            if (player.fallDistance <= 1.5) {
+                return 0;
+            }
+            // check dimension
+            int dim = player.worldObj.provider.dimensionId;
+            if (!Config.glideableDimensions.contains(dim)) {
+                return 0;
+            }
         }
-        return true;
+        return EnchantmentGlider.getPlayerLevel(player);
     }
 
-    public static void updateGlidingMotion(EntityPlayerSP player, boolean skipFallDamageCheck) {
+    public static void updateGlidingMotion(EntityPlayerSP player, boolean hasAcrobatic, int gliderLevel, int aerodynamicLevel) {
         
-        // minimum vertical speed to trigger gliding
         final float DEG2RAD = (float)Math.PI / 180;
 
-        // ratio is about 2, but too fast seems
-        final float minHorizontalSpeed = 0.5f;
+        final float minHorizontalSpeed = 0.5f + 0.1f * (gliderLevel + aerodynamicLevel);
         final float horizontalAccel = 0.1f;
-        final float dragConstantVertical = 0.5f;
-        final float dragConstantHorizontal = 0.05f;
-        final float turningConstant = 2f * DEG2RAD;
-        final float turningConstraint = 0.707f; // 45 degrees
+        final float dragConstantVertical = 0.5f + 0.2f * gliderLevel;
+        final float dragConstantHorizontal = 0.05f - 0.005f * aerodynamicLevel;
+        final float turningConstant = (hasAcrobatic ? 5f : 2f) * DEG2RAD;
+        final float turningConstraint = hasAcrobatic ? 0 : 0.707f; // cos(45 degrees)
 
         float motionX = (float) player.motionX;
         float motionY = (float) player.motionY;
@@ -73,7 +79,7 @@ public class GliderClient {
         final float horizontalSpeedSquared = motionX * motionX + motionZ * motionZ;
 
         boolean cancelFallDamage = false;
-        if (!skipFallDamageCheck && player.fallDistance > 3) {
+        if (!hasAcrobatic && player.fallDistance > 3) {
             // threshold for min vertical speed to trigger fall damage
             final float thresholdVertical = 0.25f;
             if (verticalSpeedSquared < thresholdVertical) {
@@ -121,17 +127,19 @@ public class GliderClient {
                 motionZ = motionZ * ratio;
             }
             // turning, can only do if there is speed
-            final float strafe = ((IPlayerGliding) player).getGlidingStrafe();
-            if (Math.abs(strafe) >= EPSILON && Math.abs(newHorizontalSpeed) >= EPSILON) {
-                // dot product 
+            if (Math.abs(newHorizontalSpeed) >= EPSILON) {
                 final float cosAngle = (lookUnitX * motionX + lookUnitZ * motionZ) / newHorizontalSpeed;
                 if (cosAngle > turningConstraint) {
-                    float turningAngle = strafe * (turningConstant / horizontalSpeed);
-                    float cosTurningAngle = MathHelper.cos(turningAngle);
-                    float sinTurningAngle = MathHelper.sin(turningAngle);
-                    float newMotionX = motionX * cosTurningAngle + motionZ * sinTurningAngle;
-                    motionZ = motionZ * cosTurningAngle - motionX * sinTurningAngle;
-                    motionX = newMotionX;
+                    // find turning direction using cross product
+                    final float sinAngle = (lookUnitX * motionZ - lookUnitZ * motionX) / newHorizontalSpeed;
+                    if (Math.abs(sinAngle) > EPSILON) {
+                        final float turningAngle = sinAngle * (turningConstant / newHorizontalSpeed);
+                        final float sinTurningAngle = MathHelper.sin(turningAngle);
+                        final float cosTurningAngle = MathHelper.cos(turningAngle);
+                        final float newMotionX = motionX * cosTurningAngle + motionZ * sinTurningAngle;
+                        motionZ = motionZ * cosTurningAngle - motionX * sinTurningAngle;
+                        motionX = newMotionX;
+                    }
                 }
             }
         } else {

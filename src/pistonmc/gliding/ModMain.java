@@ -12,6 +12,7 @@ import net.minecraft.enchantment.Enchantment;
 import net.minecraftforge.common.MinecraftForge;
 import pistonmc.gliding.core.Config;
 import pistonmc.gliding.core.EnchantmentAcrobatic;
+import pistonmc.gliding.core.EnchantmentAerodynamic;
 import pistonmc.gliding.core.EnchantmentGlider;
 
 @Mod(modid = ModMain.MODID, version = Tags_GENERATED.VERSION)
@@ -25,6 +26,7 @@ public class ModMain
         Config.init();
         try {
             Enchantment.addToBookList(new EnchantmentGlider(Config.enchantmentIdGlider));
+            Enchantment.addToBookList(new EnchantmentAerodynamic(Config.enchantmentIdAerodynamic));
             Enchantment.addToBookList(new EnchantmentAcrobatic(Config.enchantmentIdAcrobatic));
         } catch (Exception e) {
             throw new RuntimeException("Failed to register some enchantments. There might be an ID conflict. Fix in the config", e);

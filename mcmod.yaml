@@ -63,7 +63,7 @@ libs:
 copy-paths:
 - ["null", src]
 - [src, src/main/java]
-# - [assets, src/main/resources/assets]
+- [assets, src/main/resources/assets]
 - [mixins.gliding.json, src/main/resources/mixins.gliding.json]
 - dependencies.gradle
 
